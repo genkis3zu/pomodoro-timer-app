@@ -149,10 +149,11 @@ function App() {
     }
 
     return (
-        <div className={`min-h-screen transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-y-auto font-sans selection:bg-pink-500/30`}>
-            <div className="container mx-auto min-h-screen p-6 lg:p-12 flex flex-col max-w-7xl">
+        <div className={`min-h-screen w-full transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-y-auto font-sans selection:bg-pink-500/30`}>
+            <div className="container mx-auto min-h-screen p-6 lg:p-12 flex flex-col max-w-7xl relative">
+
                 {/* Header */}
-                <header className="mb-8 flex justify-between items-center glass px-8 py-5 rounded-3xl border border-white/10 shadow-lg">
+                <header className="mb-8 flex justify-between items-center glass px-8 py-5 rounded-3xl border border-white/10 shadow-lg relative z-10">
                     <div className="flex items-center gap-4">
                         <div className={`w-3 h-3 rounded-full animate-pulse ${mode === 'work' ? 'bg-blue-400' : 'bg-emerald-400'}`}></div>
                         <div>
@@ -175,7 +176,7 @@ function App() {
                     </div>
                 </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 items-start">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 items-start relative z-10">
                     {/* Left Panel: Timer */}
                     <div className="h-full flex flex-col">
                         <div className="glass p-12 rounded-[2.5rem] shadow-2xl w-full h-full min-h-[600px] flex flex-col items-center justify-center relative border border-white/10 overflow-hidden">
@@ -189,7 +190,10 @@ function App() {
 
                     {/* Right Panel: Dashboard or Auth */}
                     <div className="h-full flex flex-col">
-                        <div className="h-full min-h-[600px]">
+                        <div className="h-full min-h-[600px] relative">
+                            {/* Decorative background glow for Right Panel */}
+                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-indigo-500' : 'bg-teal-500'}`}></div>
+
                             {session ? (
                                 <Dashboard
                                     history={history}
@@ -198,7 +202,11 @@ function App() {
                                     totalXP={totalXP}
                                 />
                             ) : (
-                                <div className="h-full flex flex-col gap-6 text-white p-8 rounded-[2.5rem] bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl items-center justify-center">
+                                <div className="h-full flex flex-col gap-6 text-white p-8 rounded-[2.5rem] bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl items-center justify-center relative overflow-hidden">
+                                    {/* Inner Glow */}
+                                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+                                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
+
                                     <Auth />
                                 </div>
                             )}
