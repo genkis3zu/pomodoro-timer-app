@@ -34,10 +34,6 @@ function App() {
             fetchProfile();
             fetchHistory();
         } else {
-            // Reset or load local data for guest? 
-            // For now, just reset to empty/default for guest to avoid confusion, 
-            // or keep local state if we want guest persistence (not implemented yet).
-            // User said "only those who authenticate will have history saved", so resetting is safer.
             setHistory([]);
             setTotalXP(0);
         }
@@ -71,7 +67,6 @@ function App() {
 
             if (error) throw error;
             if (data) {
-                // Map Supabase data to local format if needed, or use directly
                 const formattedHistory = data.map(item => ({
                     id: item.id,
                     timestamp: item.created_at,
@@ -91,7 +86,7 @@ function App() {
         const newTotalXP = totalXP + xpGained;
         const newLevel = Math.floor(newTotalXP / 100) + 1;
 
-        // Optimistic UI Update (Always update local state)
+        // Optimistic UI Update
         setTotalXP(newTotalXP);
         const newSession = {
             id: Date.now(), // Temporary ID
@@ -105,7 +100,6 @@ function App() {
         // Only sync if logged in
         if (session?.user) {
             try {
-                // 1. Insert Session
                 const { error: sessionError } = await supabase
                     .from('sessions')
                     .insert([
@@ -120,7 +114,6 @@ function App() {
                     ]);
                 if (sessionError) throw sessionError;
 
-                // 2. Update Profile
                 const { error: profileError } = await supabase
                     .from('profiles')
                     .update({ total_xp: newTotalXP, level: newLevel, updated_at: new Date() })
@@ -149,68 +142,66 @@ function App() {
     }
 
     return (
-        <div className={`min-h-screen w-full transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-y-auto font-sans selection:bg-pink-500/30`}>
-            <div className="container mx-auto min-h-screen p-6 lg:p-12 flex flex-col max-w-7xl relative">
-
-                {/* Header */}
-                <header className="mb-8 flex justify-between items-center glass px-8 py-5 rounded-3xl border border-white/10 shadow-lg relative z-10">
-                    <div className="flex items-center gap-4">
-                        <div className={`w-3 h-3 rounded-full animate-pulse ${mode === 'work' ? 'bg-blue-400' : 'bg-emerald-400'}`}></div>
-                        <div>
-                            <h1 className="text-2xl font-bold tracking-widest uppercase">Pomodoro Focus</h1>
-                            <p className="text-xs text-gray-400 tracking-wide mt-0.5">Master your time, master your mind.</p>
-                        </div>
+        <div className={`min-h-screen w-full transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-hidden font-sans selection:bg-pink-500/30 flex flex-col`}>
+            {/* Header - Fixed height or minimal padding */}
+            <header className="flex-none px-6 py-4 flex justify-between items-center glass border-b border-white/5 relative z-20">
+                <div className="flex items-center gap-4">
+                    <div className={`w-3 h-3 rounded-full animate-pulse ${mode === 'work' ? 'bg-blue-400' : 'bg-emerald-400'}`}></div>
+                    <div>
+                        <h1 className="text-xl font-bold tracking-widest uppercase">Pomodoro Focus</h1>
                     </div>
-                    <div className="flex items-center gap-4">
-                        <div className="text-xs font-mono bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-gray-300">
-                            v1.0.0
-                        </div>
-                        {session && (
-                            <button
-                                onClick={handleSignOut}
-                                className="text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
-                            >
-                                Sign Out
-                            </button>
-                        )}
+                </div>
+                <div className="flex items-center gap-4">
+                    <div className="text-xs font-mono bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-gray-300">
+                        v1.0.0
                     </div>
-                </header>
+                    {session && (
+                        <button
+                            onClick={handleSignOut}
+                            className="text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
+                        >
+                            Sign Out
+                        </button>
+                    )}
+                </div>
+            </header>
 
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 items-start relative z-10">
-                    {/* Left Panel: Timer */}
-                    <div className="h-full flex flex-col">
-                        <div className="glass p-12 rounded-[2.5rem] shadow-2xl w-full h-full min-h-[600px] flex flex-col items-center justify-center relative border border-white/10 overflow-hidden">
-                            {/* Decorative background glow */}
-                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] rounded-full blur-[120px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-                            <div className="relative z-10 w-full flex-1 flex flex-col justify-center">
-                                <Timer mode={mode} setMode={setMode} onComplete={handleTimerComplete} />
-                            </div>
-                        </div>
+            {/* Main Content - Fills remaining height */}
+            <div className="flex-1 w-full p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6 relative z-10 overflow-hidden">
+
+                {/* Left Panel: Timer */}
+                <div className="h-full w-full glass rounded-[2rem] shadow-2xl flex flex-col items-center justify-center relative border border-white/10 overflow-hidden">
+                    {/* Decorative background glow */}
+                    <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] rounded-full blur-[120px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
+                    <div className="relative z-10 w-full flex-1 flex flex-col justify-center">
+                        <Timer mode={mode} setMode={setMode} onComplete={handleTimerComplete} />
                     </div>
+                </div>
 
-                    {/* Right Panel: Dashboard or Auth */}
-                    <div className="h-full flex flex-col">
-                        <div className="h-full min-h-[600px] relative">
-                            {/* Decorative background glow for Right Panel */}
-                            <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-indigo-500' : 'bg-teal-500'}`}></div>
+                {/* Right Panel: Dashboard or Auth */}
+                <div className="h-full w-full glass rounded-[2rem] shadow-2xl flex flex-col relative border border-white/10 overflow-hidden">
+                    <div className="h-full w-full relative flex flex-col">
+                        {/* Decorative background glow for Right Panel */}
+                        <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-indigo-500' : 'bg-teal-500'}`}></div>
 
-                            {session ? (
+                        {session ? (
+                            <div className="flex-1 overflow-hidden p-6">
                                 <Dashboard
                                     history={history}
                                     currentTask={currentTask}
                                     setCurrentTask={setCurrentTask}
                                     totalXP={totalXP}
                                 />
-                            ) : (
-                                <div className="h-full flex flex-col gap-6 text-white p-8 rounded-[2.5rem] bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl items-center justify-center relative overflow-hidden">
-                                    {/* Inner Glow */}
-                                    <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
-                                    <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
+                            </div>
+                        ) : (
+                            <div className="h-full w-full flex flex-col gap-6 text-white p-8 items-center justify-center relative overflow-hidden">
+                                {/* Inner Glow */}
+                                <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
+                                <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
 
-                                    <Auth />
-                                </div>
-                            )}
-                        </div>
+                                <Auth />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
