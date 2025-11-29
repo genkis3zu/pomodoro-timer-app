@@ -40,32 +40,33 @@ function App() {
   };
 
   return (
-    <div className={`min-h-screen transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-hidden`}>
-      <div className="container mx-auto h-screen p-4 lg:p-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+    <div className={`min-h-screen transition-colors duration-1000 ease-in-out ${getBackgroundClass()} text-white overflow-y-auto`}>
+      <div className="container mx-auto min-h-screen p-4 lg:p-8 flex flex-col">
+        {/* Header */}
+        <header className="mb-8 flex justify-between items-center glass px-8 py-4 rounded-2xl">
+          <div>
+            <h1 className="text-2xl font-bold tracking-wider">POMODORO FOCUS</h1>
+            <p className="text-sm text-gray-300">Master your time, master your mind.</p>
+          </div>
+          <div className="text-xs font-mono bg-white/10 px-3 py-1 rounded-full">
+            v1.0.0
+          </div>
+        </header>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1">
           {/* Left Panel: Timer */}
-          <div className="flex items-center justify-center h-full">
-            <div className="glass p-12 rounded-3xl shadow-2xl w-full max-w-xl aspect-square flex items-center justify-center relative overflow-hidden">
+          <div className="flex items-center justify-center h-full min-h-[500px]">
+            <div className="glass p-8 lg:p-12 rounded-3xl shadow-2xl w-full max-w-xl flex flex-col items-center justify-center relative">
               {/* Decorative background glow */}
               <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-3/4 rounded-full blur-[100px] opacity-20 ${mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-              <div className="relative z-10">
+              <div className="relative z-10 w-full">
                 <Timer mode={mode} setMode={setMode} onComplete={handleTimerComplete} />
               </div>
             </div>
           </div>
 
           {/* Right Panel: Dashboard */}
-          <div className="h-full hidden lg:block">
-            <Dashboard
-              history={history}
-              currentTask={currentTask}
-              setCurrentTask={setCurrentTask}
-              totalXP={totalXP}
-            />
-          </div>
-
-          {/* Mobile Dashboard (Optional: could be a toggle or stacked below) */}
-          <div className="lg:hidden">
+          <div className="h-full min-h-[500px]">
             <Dashboard
               history={history}
               currentTask={currentTask}
