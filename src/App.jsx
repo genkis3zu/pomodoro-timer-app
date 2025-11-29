@@ -33,6 +33,13 @@ function App() {
         if (session?.user) {
             fetchProfile();
             fetchHistory();
+        } else {
+            // Reset or load local data for guest? 
+            // For now, just reset to empty/default for guest to avoid confusion, 
+            // or keep local state if we want guest persistence (not implemented yet).
+            // User said "only those who authenticate will have history saved", so resetting is safer.
+            setHistory([]);
+            setTotalXP(0);
         }
     }, [session]);
 
@@ -80,13 +87,11 @@ function App() {
     };
 
     const handleTimerComplete = async () => {
-        if (!session?.user) return;
-
         const xpGained = mode === 'work' ? 25 : 5;
         const newTotalXP = totalXP + xpGained;
         const newLevel = Math.floor(newTotalXP / 100) + 1;
 
-        // Optimistic UI Update
+        // Optimistic UI Update (Always update local state)
         setTotalXP(newTotalXP);
         const newSession = {
             id: Date.now(), // Temporary ID
@@ -97,40 +102,40 @@ function App() {
         };
         setHistory(prev => [newSession, ...prev]);
 
-        try {
-            // 1. Insert Session
-            const { error: sessionError } = await supabase
-                .from('sessions')
-                .insert([
-                    {
-                        user_id: session.user.id,
-                        start_time: new Date(Date.now() - (mode === 'work' ? 25 : 5) * 60000).toISOString(), // Approx start
-                        end_time: new Date().toISOString(),
-                        mode,
-                        task: currentTask,
-                        xp_gained: xpGained
-                    }
-                ]);
-            if (sessionError) throw sessionError;
+        // Only sync if logged in
+        if (session?.user) {
+            try {
+                // 1. Insert Session
+                const { error: sessionError } = await supabase
+                    .from('sessions')
+                    .insert([
+                        {
+                            user_id: session.user.id,
+                            start_time: new Date(Date.now() - (mode === 'work' ? 25 : 5) * 60000).toISOString(), // Approx start
+                            end_time: new Date().toISOString(),
+                            mode,
+                            task: currentTask,
+                            xp_gained: xpGained
+                        }
+                    ]);
+                if (sessionError) throw sessionError;
 
-            // 2. Update Profile
-            const { error: profileError } = await supabase
-                .from('profiles')
-                .update({ total_xp: newTotalXP, level: newLevel, updated_at: new Date() })
-                .eq('id', session.user.id);
+                // 2. Update Profile
+                const { error: profileError } = await supabase
+                    .from('profiles')
+                    .update({ total_xp: newTotalXP, level: newLevel, updated_at: new Date() })
+                    .eq('id', session.user.id);
 
-            if (profileError) throw profileError;
+                if (profileError) throw profileError;
 
-        } catch (error) {
-            console.error('Error saving progress:', error.message);
-            // Revert optimistic update if needed (omitted for simplicity)
+            } catch (error) {
+                console.error('Error saving progress:', error.message);
+            }
         }
     };
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
-        setHistory([]);
-        setTotalXP(0);
     };
 
     const getBackgroundClass = () => {
@@ -141,10 +146,6 @@ function App() {
 
     if (loading) {
         return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">Loading...</div>;
-    }
-
-    if (!session) {
-        return <Auth />;
     }
 
     return (
@@ -163,12 +164,14 @@ function App() {
                         <div className="text-xs font-mono bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-gray-300">
                             v1.0.0
                         </div>
-                        <button
-                            onClick={handleSignOut}
-                            className="text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
-                        >
-                            Sign Out
-                        </button>
+                        {session && (
+                            <button
+                                onClick={handleSignOut}
+                                className="text-xs font-bold uppercase tracking-wider text-red-400 hover:text-red-300 transition-colors"
+                            >
+                                Sign Out
+                            </button>
+                        )}
                     </div>
                 </header>
 
@@ -184,15 +187,21 @@ function App() {
                         </div>
                     </div>
 
-                    {/* Right Panel: Dashboard */}
+                    {/* Right Panel: Dashboard or Auth */}
                     <div className="h-full flex flex-col">
                         <div className="h-full min-h-[600px]">
-                            <Dashboard
-                                history={history}
-                                currentTask={currentTask}
-                                setCurrentTask={setCurrentTask}
-                                totalXP={totalXP}
-                            />
+                            {session ? (
+                                <Dashboard
+                                    history={history}
+                                    currentTask={currentTask}
+                                    setCurrentTask={setCurrentTask}
+                                    totalXP={totalXP}
+                                />
+                            ) : (
+                                <div className="h-full flex flex-col gap-6 text-white p-8 rounded-[2.5rem] bg-slate-900/40 backdrop-blur-xl border border-white/10 shadow-2xl items-center justify-center">
+                                    <Auth />
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>
