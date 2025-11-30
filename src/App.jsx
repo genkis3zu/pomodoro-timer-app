@@ -3,9 +3,10 @@ import Timer from './components/Timer';
 import Dashboard from './components/Dashboard';
 import Auth from './components/Auth';
 import HelpModal from './components/HelpModal';
+import SettingsModal from './components/SettingsModal';
 import { supabase } from './lib/supabaseClient';
-
-import { useAudioDrone } from './hooks/useAudioDrone';
+import { getPresets } from './lib/audioPresets';
+import { useAudioPlayer } from './hooks/useAudioPlayer';
 
 function App() {
     const [session, setSession] = useState({ user: { id: 'mock-user-id', email: 'test@example.com' } }); // Mock session for testing
@@ -17,8 +18,61 @@ function App() {
     const [authNotification, setAuthNotification] = useState(null);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
+    const [showSettings, setShowSettings] = useState(false);
 
-    useAudioDrone(audioEnabled && mode === 'work');
+    // Audio Settings State
+    const [audioSettings, setAudioSettings] = useState({
+        work: { source: 'preset', presetId: null, volume: 0.5 },
+        break: { source: 'preset', presetId: null, volume: 0.5 },
+        alarm: { source: 'preset', presetId: null, volume: 0.8 }
+    });
+
+    // Initialize presets on mount
+    useEffect(() => {
+        const presets = getPresets();
+        const workPreset = presets.find(p => p.category === 'work');
+        const breakPreset = presets.find(p => p.category === 'break');
+        const alarmPreset = presets.find(p => p.category === 'alarm');
+
+        setAudioSettings(prev => ({
+            work: { ...prev.work, presetId: workPreset?.id },
+            break: { ...prev.break, presetId: breakPreset?.id },
+            alarm: { ...prev.alarm, presetId: alarmPreset?.id }
+        }));
+    }, []);
+
+    // Determine current ambient source
+    const getCurrentAudioSource = () => {
+        const settings = audioSettings[mode];
+        if (settings.source === 'custom') return settings.customUrl;
+        if (settings.source === 'preset' && settings.presetId) {
+            const preset = getPresets().find(p => p.id === settings.presetId);
+            return preset?.url;
+        }
+        return null;
+    };
+
+    const currentAudioUrl = getCurrentAudioSource();
+    const currentVolume = audioSettings[mode].volume;
+
+    // Ambient Audio Player
+    useAudioPlayer({
+        src: currentAudioUrl,
+        volume: currentVolume,
+        loop: true,
+        enabled: audioEnabled
+    });
+
+    // Get Alarm URL for Timer
+    const getAlarmUrl = () => {
+        const settings = audioSettings.alarm;
+        if (settings.source === 'custom') return settings.customUrl;
+        if (settings.source === 'preset' && settings.presetId) {
+            const preset = getPresets().find(p => p.id === settings.presetId);
+            return preset?.url;
+        }
+        return null;
+    };
 
     // Auth State Listener & Hash Parser
     /*
@@ -173,6 +227,15 @@ function App() {
                 </div>
                 <div className="flex items-center gap-4">
                     <button
+                        onClick={() => setShowSettings(true)}
+                        className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all"
+                        title="Settings"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M10.34 15.84c-.688-.06-1.386-.09-2.09-.09H7.5a4.5 4.5 0 110-9h.75c.704 0 1.402-.03 2.09-.09m0 9.18c.253.962.584 1.892.985 2.783.247.55.06 1.21-.463 1.511l-.657.38c-.551.318-1.26.117-1.527-.461a20.845 20.845 0 01-1.44-4.282m3.102.069a18.03 18.03 0 01-.59-4.59c0-1.586.205-3.124.59-4.59m0 9.18a23.848 23.848 0 018.835 2.535M10.34 6.66a23.847 23.847 0 008.835-2.535m0 0A23.74 23.74 0 0018.795 3m.38 1.125a23.91 23.91 0 011.014 5.395m-1.014 8.855c-.118.38-.245.754-.38 1.125m.38-1.125a23.91 23.91 0 001.014-5.395m0-3.46c.495.413.811 1.035.811 1.73 0 .695-.316 1.317-.811 1.73m0-3.46a24.42 24.42 0 010 3.46" />
+                        </svg>
+                    </button>
+                    <button
                         onClick={() => setShowHelp(true)}
                         className="p-2 rounded-full text-gray-400 hover:text-white hover:bg-white/10 transition-all"
                         title="Guide"
@@ -215,7 +278,13 @@ function App() {
                 <div className="h-full w-full glass rounded-[2rem] shadow-2xl flex flex-col items-center justify-center relative border border-white/10 overflow-hidden">
                     <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] rounded-full blur-[120px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
                     <div className="relative z-10 w-full flex-1 flex flex-col justify-center">
-                        <Timer mode={mode} setMode={setMode} onComplete={handleTimerComplete} />
+                        <Timer
+                            mode={mode}
+                            setMode={setMode}
+                            onComplete={handleTimerComplete}
+                            alarmUrl={getAlarmUrl()}
+                            alarmVolume={audioSettings.alarm.volume}
+                        />
                     </div>
                 </div>
 
@@ -246,6 +315,13 @@ function App() {
             </div>
 
             {/* Modals */}
+            {showSettings && (
+                <SettingsModal
+                    onClose={() => setShowSettings(false)}
+                    audioSettings={audioSettings}
+                    onUpdateSettings={setAudioSettings}
+                />
+            )}
             {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
         </div>
     );

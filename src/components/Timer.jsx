@@ -5,7 +5,7 @@ import Controls from './Controls';
 const WORK_TIME = 2; // 2 seconds for testing
 const BREAK_TIME = 2; // 2 seconds for testing
 
-const Timer = ({ mode, setMode, onComplete }) => {
+const Timer = ({ mode, setMode, onComplete, alarmUrl, alarmVolume = 0.5 }) => {
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
     const [isActive, setIsActive] = useState(false);
     const audioContextRef = useRef(null);
@@ -41,6 +41,13 @@ const Timer = ({ mode, setMode, onComplete }) => {
     };
 
     const playAlarm = () => {
+        if (alarmUrl) {
+            const audio = new Audio(alarmUrl);
+            audio.volume = alarmVolume;
+            audio.play().catch(e => console.error("Alarm playback failed:", e));
+            return;
+        }
+
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
