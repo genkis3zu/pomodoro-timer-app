@@ -1,12 +1,19 @@
 import React, { useState } from 'react';
 import { supabase } from '../lib/supabaseClient';
 
-const Auth = () => {
+const Auth = ({ notification }) => {
     const [loading, setLoading] = useState(false);
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLogin, setIsLogin] = useState(true);
     const [error, setError] = useState(null);
+
+    // Effect to set error from prop
+    React.useEffect(() => {
+        if (notification && notification.type === 'error') {
+            setError(notification.message);
+        }
+    }, [notification]);
 
     const handleAuth = async (e) => {
         e.preventDefault();
@@ -24,9 +31,12 @@ const Auth = () => {
                 const { error } = await supabase.auth.signUp({
                     email,
                     password,
+                    options: {
+                        emailRedirectTo: window.location.origin,
+                    },
                 });
                 if (error) throw error;
-                alert('Check your email for the login link!');
+                alert('Registration successful! Please check your email to confirm your account before logging in.');
             }
         } catch (error) {
             setError(error.message);

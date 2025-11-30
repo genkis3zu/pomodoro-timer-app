@@ -11,9 +11,21 @@ function App() {
     const [currentTask, setCurrentTask] = useState('');
     const [history, setHistory] = useState([]);
     const [totalXP, setTotalXP] = useState(0);
+    const [authNotification, setAuthNotification] = useState(null);
 
-    // Auth State Listener
+    // Auth State Listener & Hash Parser
     useEffect(() => {
+        // Check for error in hash (e.g. from email link redirect)
+        const hash = window.location.hash;
+        if (hash && hash.includes('error=')) {
+            const params = new URLSearchParams(hash.substring(1));
+            const errorDescription = params.get('error_description');
+            if (errorDescription) {
+                setAuthNotification({ type: 'error', message: decodeURIComponent(errorDescription.replace(/\+/g, ' ')) });
+                window.history.replaceState(null, null, ' '); // Clean URL
+            }
+        }
+
         supabase.auth.getSession().then(({ data: { session } }) => {
             setSession(session);
             setLoading(false);
@@ -23,6 +35,8 @@ function App() {
             data: { subscription },
         } = supabase.auth.onAuthStateChange((_event, session) => {
             setSession(session);
+            // Clear notification on successful login
+            if (session) setAuthNotification(null);
         });
 
         return () => subscription.unsubscribe();
@@ -199,7 +213,7 @@ function App() {
                                 <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl -mr-32 -mt-32 pointer-events-none"></div>
                                 <div className="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-3xl -ml-32 -mb-32 pointer-events-none"></div>
 
-                                <Auth />
+                                <Auth notification={authNotification} />
                             </div>
                         )}
                     </div>
