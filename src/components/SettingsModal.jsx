@@ -1,9 +1,48 @@
 import React, { useState, useEffect } from 'react';
 import { getPresets } from '../lib/audioPresets';
 
-const SettingsModal = ({ onClose, audioSettings, onUpdateSettings }) => {
+const SettingsModal = ({ onClose, audioSettings, onUpdateSettings, onPreviewChange }) => {
     const [activeTab, setActiveTab] = useState('work');
+    const [previewUrl, setPreviewUrl] = useState(null);
+    const previewAudioRef = React.useRef(null);
     const presets = getPresets();
+
+    useEffect(() => {
+        return () => {
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+                previewAudioRef.current = null;
+            }
+            if (onPreviewChange) onPreviewChange(false);
+        };
+    }, []);
+
+    const togglePreview = (url) => {
+        if (previewUrl === url) {
+            // Stop
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+                previewAudioRef.current = null;
+            }
+            setPreviewUrl(null);
+            if (onPreviewChange) onPreviewChange(false);
+        } else {
+            // Play new
+            if (previewAudioRef.current) {
+                previewAudioRef.current.pause();
+            }
+            const audio = new Audio(url);
+            audio.volume = 0.5; // Default preview volume
+            audio.play().catch(e => console.error("Preview failed:", e));
+            audio.onended = () => {
+                setPreviewUrl(null);
+                if (onPreviewChange) onPreviewChange(false);
+            };
+            previewAudioRef.current = audio;
+            setPreviewUrl(url);
+            if (onPreviewChange) onPreviewChange(true);
+        }
+    };
 
     const handleFileChange = (e, type) => {
         const file = e.target.files[0];
@@ -96,14 +135,34 @@ const SettingsModal = ({ onClose, audioSettings, onUpdateSettings }) => {
                                     <button
                                         key={preset.id}
                                         onClick={() => handlePresetSelect(preset, type)}
-                                        className={`p-3 rounded-lg text-left text-sm transition-all flex items-center justify-between ${currentSettings.presetId === preset.id ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
+                                        className={`p-3 rounded-lg text-left text-sm transition-all flex items-center justify-between group ${currentSettings.presetId === preset.id ? 'bg-blue-500 text-white' : 'bg-white/5 text-gray-300 hover:bg-white/10'}`}
                                     >
                                         <span>{preset.name}</span>
-                                        {currentSettings.presetId === preset.id && (
-                                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
-                                                <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
-                                            </svg>
-                                        )}
+                                        <div className="flex items-center gap-2">
+                                            <div
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    togglePreview(preset.url);
+                                                }}
+                                                className={`p-1.5 rounded-full hover:bg-white/20 transition-colors ${previewUrl === preset.url ? 'text-green-400' : 'text-gray-400'}`}
+                                                title={previewUrl === preset.url ? "Stop Preview" : "Preview Sound"}
+                                            >
+                                                {previewUrl === preset.url ? (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                                        <path fillRule="evenodd" d="M6.75 5.25a.75.75 0 01.75-.75H9a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H7.5a.75.75 0 01-.75-.75V5.25zm7.5 0A.75.75 0 0115 4.5h1.5a.75.75 0 01.75.75v13.5a.75.75 0 01-.75.75H15a.75.75 0 01-.75-.75V5.25z" clipRule="evenodd" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4">
+                                                        <path fillRule="evenodd" d="M4.5 5.653c0-1.426 1.529-2.33 2.779-1.643l11.54 6.348c1.295.712 1.295 2.573 0 3.285L7.28 19.991c-1.25.687-2.779-.217-2.779-1.643V5.653z" clipRule="evenodd" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            {currentSettings.presetId === preset.id && (
+                                                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-5 h-5">
+                                                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clipRule="evenodd" />
+                                                </svg>
+                                            )}
+                                        </div>
                                     </button>
                                 ))
                             )}

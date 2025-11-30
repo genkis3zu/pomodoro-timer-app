@@ -33,35 +33,45 @@ body {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   }
 
-  /* Glitch Effect */
-  .glitch-active {
-    animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+  /* Occasional Shake Animation */
+  .animate-shake-occasional {
+    animation: shake-occasional 5s ease-in-out infinite;
   }
 
-  @keyframes glitch {
-    0% {
-      transform: translate(0)
+  @keyframes shake-occasional {
+
+    0%,
+    90% {
+      transform: translate(0);
     }
 
-    20% {
-      transform: translate(-2px, 2px)
+    91% {
+      transform: translate(-1px, 1px);
     }
 
-    40% {
-      transform: translate(-2px, -2px)
+    92% {
+      transform: translate(-1px, -1px);
     }
 
-    60% {
-      transform: translate(2px, 2px)
+    93% {
+      transform: translate(1px, 1px);
     }
 
-    80% {
-      transform: translate(2px, -2px)
+    94% {
+      transform: translate(1px, -1px);
+    }
+
+    95% {
+      transform: translate(0);
     }
 
     100% {
-      transform: translate(0)
+      transform: translate(0);
     }
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
   }
 
   /* Breathing UI (6s cycle = 10 breaths/min) */

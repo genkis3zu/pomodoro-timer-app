@@ -1,73 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
 import ProgressBar from './ProgressBar';
 import Controls from './Controls';
+import { useTimer } from '../context/TimerContext';
 
-const WORK_TIME = 2; // 2 seconds for testing
-const BREAK_TIME = 2; // 2 seconds for testing
+const Timer = ({ audioEnabled, onToggleAudio, playAlarm }) => {
+    const { mode, timeLeft, isActive, totalTime, toggleTimer, resetTimer, switchMode } = useTimer();
 
-const Timer = ({ mode, setMode, onComplete, alarmUrl, alarmVolume = 0.5 }) => {
-    const [timeLeft, setTimeLeft] = useState(WORK_TIME);
-    const [isActive, setIsActive] = useState(false);
-    const audioContextRef = useRef(null);
-
-    const totalTime = mode === 'work' ? WORK_TIME : BREAK_TIME;
     const progress = ((totalTime - timeLeft) / totalTime) * 100;
-
-    useEffect(() => {
-        // Reset timer when mode changes externally
-        setIsActive(false);
-        setTimeLeft(mode === 'work' ? WORK_TIME : BREAK_TIME);
-    }, [mode]);
-
-    useEffect(() => {
-        let interval = null;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prevTime) => prevTime - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && isActive) {
-            setIsActive(false);
-            playAlarm();
-            if (onComplete) onComplete();
-        }
-        return () => clearInterval(interval);
-    }, [isActive, timeLeft, onComplete]);
-
-    const toggleTimer = () => setIsActive(!isActive);
-
-    const resetTimer = () => {
-        setIsActive(false);
-        setTimeLeft(mode === 'work' ? WORK_TIME : BREAK_TIME);
-    };
-
-    const playAlarm = () => {
-        if (alarmUrl) {
-            const audio = new Audio(alarmUrl);
-            audio.volume = alarmVolume;
-            audio.play().catch(e => console.error("Alarm playback failed:", e));
-            return;
-        }
-
-        if (!audioContextRef.current) {
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-        }
-        const ctx = audioContextRef.current;
-        const oscillator = ctx.createOscillator();
-        const gainNode = ctx.createGain();
-
-        oscillator.connect(gainNode);
-        gainNode.connect(ctx.destination);
-
-        oscillator.type = 'sine';
-        oscillator.frequency.setValueAtTime(880, ctx.currentTime);
-        oscillator.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.5);
-
-        gainNode.gain.setValueAtTime(0.5, ctx.currentTime);
-        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
-
-        oscillator.start();
-        oscillator.stop(ctx.currentTime + 0.5);
-    };
 
     const formatTime = (seconds) => {
         const mins = Math.floor(seconds / 60);
@@ -98,9 +37,11 @@ const Timer = ({ mode, setMode, onComplete, alarmUrl, alarmVolume = 0.5 }) => {
                 onToggle={toggleTimer}
                 onReset={resetTimer}
                 mode={mode}
-                onSwitchMode={setMode}
+                onSwitchMode={switchMode}
                 startLabel="JACK IN"
                 stopLabel="JACK OUT"
+                audioEnabled={audioEnabled}
+                onToggleAudio={onToggleAudio}
             />
         </div>
     );

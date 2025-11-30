@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
+import SystemLog from './SystemLog';
 
-const Dashboard = ({ history, currentTask, setCurrentTask, totalXP }) => {
+const Dashboard = ({ history, currentTask, setCurrentTask, totalXP, systemLogs }) => {
+    const [viewMode, setViewMode] = useState('history'); // 'history' or 'system'
     const level = Math.floor(totalXP / 100) + 1;
     const xpProgress = totalXP % 100;
 
@@ -49,39 +51,62 @@ const Dashboard = ({ history, currentTask, setCurrentTask, totalXP }) => {
                 </div>
             </div>
 
-            {/* History List */}
+            {/* Logs Section */}
             <div className="flex-1 min-h-0 flex flex-col">
-                <label className="text-xs font-bold text-blue-300/70 uppercase tracking-wider mb-2 block">
-                    Session Log
-                </label>
-                <div className="flex-1 overflow-y-auto pr-2 space-y-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    {history.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-white/20 italic text-sm border-2 border-dashed border-white/5 rounded-xl">
-                            <span>No data recorded</span>
-                        </div>
-                    ) : (
-                        history.map((session) => (
-                            <div
-                                key={session.id}
-                                className="group flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all animate-fade-in"
-                            >
-                                <div className="flex items-center gap-3">
-                                    <div className={`w-1.5 h-8 rounded-full ${session.mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
-                                    <div>
-                                        <div className="text-sm font-medium text-white/90">
-                                            {session.task || (session.mode === 'work' ? 'Netrun Session' : 'Cooldown')}
+                <div className="flex justify-between items-center mb-2">
+                    <label className="text-xs font-bold text-blue-300/70 uppercase tracking-wider block">
+                        Data Logs
+                    </label>
+                    <div className="flex bg-slate-900/50 rounded-lg p-1 border border-white/5">
+                        <button
+                            onClick={() => setViewMode('history')}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${viewMode === 'history' ? 'bg-blue-500/20 text-blue-300' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            HISTORY
+                        </button>
+                        <button
+                            onClick={() => setViewMode('system')}
+                            className={`px-3 py-1 text-[10px] font-bold rounded-md transition-all ${viewMode === 'system' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-500 hover:text-gray-300'}`}
+                        >
+                            SYSTEM
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-hidden bg-slate-900/30 rounded-xl border border-white/5 relative">
+                    {viewMode === 'history' ? (
+                        <div className="absolute inset-0 overflow-y-auto pr-2 space-y-2 p-3 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                            {history.length === 0 ? (
+                                <div className="h-full flex flex-col items-center justify-center text-white/20 italic text-sm border-2 border-dashed border-white/5 rounded-xl">
+                                    <span>No data recorded</span>
+                                </div>
+                            ) : (
+                                history.map((session) => (
+                                    <div
+                                        key={session.id}
+                                        className="group flex items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 hover:border-white/10 transition-all animate-fade-in"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className={`w-1.5 h-8 rounded-full ${session.mode === 'work' ? 'bg-blue-500' : 'bg-emerald-500'}`}></div>
+                                            <div>
+                                                <div className="text-sm font-medium text-white/90">
+                                                    {session.task || (session.mode === 'work' ? 'Netrun Session' : 'Cooldown')}
+                                                </div>
+                                                <div className="text-xs text-white/40 font-mono">
+                                                    {new Date(session.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                </div>
+                                            </div>
                                         </div>
-                                        <div className="text-xs text-white/40 font-mono">
-                                            {new Date(session.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        <div className="flex flex-col items-end">
+                                            <span className="text-xs font-bold text-blue-300">+{session.xp} XP</span>
+                                            <span className="text-[10px] text-white/30 uppercase tracking-wider">{session.mode === 'work' ? 'NETRUN' : 'COOLDOWN'}</span>
                                         </div>
                                     </div>
-                                </div>
-                                <div className="flex flex-col items-end">
-                                    <span className="text-xs font-bold text-blue-300">+{session.xp} XP</span>
-                                    <span className="text-[10px] text-white/30 uppercase tracking-wider">{session.mode === 'work' ? 'NETRUN' : 'COOLDOWN'}</span>
-                                </div>
-                            </div>
-                        ))
+                                ))
+                            )}
+                        </div>
+                    ) : (
+                        <SystemLog logs={systemLogs} />
                     )}
                 </div>
             </div>
