@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import ProgressBar from './ProgressBar';
 import Controls from './Controls';
 
-const WORK_TIME = 25 * 60;
-const BREAK_TIME = 5 * 60;
+const WORK_TIME = 2; // 2 seconds for testing
+const BREAK_TIME = 2; // 2 seconds for testing
 
 const Timer = ({ mode, setMode, onComplete }) => {
     const [timeLeft, setTimeLeft] = useState(WORK_TIME);
@@ -25,7 +25,7 @@ const Timer = ({ mode, setMode, onComplete }) => {
             interval = setInterval(() => {
                 setTimeLeft((prevTime) => prevTime - 1);
             }, 1000);
-        } else if (timeLeft === 0) {
+        } else if (timeLeft === 0 && isActive) {
             setIsActive(false);
             playAlarm();
             if (onComplete) onComplete();
@@ -72,11 +72,11 @@ const Timer = ({ mode, setMode, onComplete }) => {
         <div className="flex flex-col items-center justify-center">
             <div className="mb-8 text-center">
                 <h1 className="text-4xl font-bold tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-blue-200 to-cyan-200 drop-shadow-sm">
-                    POMODORO
+                    NEONFLOW
                 </h1>
                 <div className={`mt-2 inline-block px-3 py-1 rounded-full text-xs font-semibold tracking-wider uppercase ${mode === 'work' ? 'bg-blue-500/20 text-blue-200' : 'bg-emerald-500/20 text-emerald-200'
                     }`}>
-                    {mode === 'work' ? 'Focus Mode' : 'Break Mode'}
+                    {mode === 'work' ? 'NETRUN MODE' : 'COOLDOWN MODE'}
                 </div>
             </div>
 
@@ -92,6 +92,8 @@ const Timer = ({ mode, setMode, onComplete }) => {
                 onReset={resetTimer}
                 mode={mode}
                 onSwitchMode={setMode}
+                startLabel="JACK IN"
+                stopLabel="JACK OUT"
             />
         </div>
     );

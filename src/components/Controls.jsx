@@ -1,6 +1,6 @@
 import React from 'react';
 
-const Controls = ({ isActive, onToggle, onReset, mode, onSwitchMode }) => {
+const Controls = ({ isActive, onToggle, onReset, mode, onSwitchMode, startLabel = 'START', stopLabel = 'PAUSE' }) => {
     return (
         <div className="flex flex-col items-center gap-8 mt-10">
             {/* Mode Switcher */}
@@ -8,20 +8,20 @@ const Controls = ({ isActive, onToggle, onReset, mode, onSwitchMode }) => {
                 <button
                     onClick={() => onSwitchMode('work')}
                     className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${mode === 'work'
-                            ? 'bg-blue-500/20 text-blue-200 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
-                            : 'text-gray-400 hover:text-white'
+                        ? 'bg-blue-500/20 text-blue-200 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
-                    Work
+                    NETRUN
                 </button>
                 <button
                     onClick={() => onSwitchMode('break')}
                     className={`px-6 py-2 rounded-full text-sm font-medium transition-all duration-300 ${mode === 'break'
-                            ? 'bg-emerald-500/20 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
-                            : 'text-gray-400 hover:text-white'
+                        ? 'bg-emerald-500/20 text-emerald-200 shadow-[0_0_10px_rgba(16,185,129,0.3)]'
+                        : 'text-gray-400 hover:text-white'
                         }`}
                 >
-                    Break
+                    COOLDOWN
                 </button>
             </div>
 
@@ -40,11 +40,11 @@ const Controls = ({ isActive, onToggle, onReset, mode, onSwitchMode }) => {
                 <button
                     onClick={onToggle}
                     className={`px-10 py-4 rounded-2xl font-bold text-xl tracking-wide text-white shadow-lg transition-all hover:scale-105 active:scale-95 ${isActive
-                            ? 'bg-gradient-to-r from-rose-500 to-pink-600 shadow-rose-500/30'
-                            : 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-blue-500/30'
+                        ? 'bg-gradient-to-r from-rose-500 to-pink-600 shadow-rose-500/30 glitch-active'
+                        : 'bg-gradient-to-r from-blue-500 to-cyan-500 shadow-blue-500/30'
                         }`}
                 >
-                    {isActive ? 'PAUSE' : 'START'}
+                    {isActive ? stopLabel : startLabel}
                 </button>
             </div>
         </div>

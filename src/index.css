@@ -32,4 +32,57 @@ body {
   .text-glow {
     text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
   }
+
+  /* Glitch Effect */
+  .glitch-active {
+    animation: glitch 0.3s cubic-bezier(.25, .46, .45, .94) both infinite;
+  }
+
+  @keyframes glitch {
+    0% {
+      transform: translate(0)
+    }
+
+    20% {
+      transform: translate(-2px, 2px)
+    }
+
+    40% {
+      transform: translate(-2px, -2px)
+    }
+
+    60% {
+      transform: translate(2px, 2px)
+    }
+
+    80% {
+      transform: translate(2px, -2px)
+    }
+
+    100% {
+      transform: translate(0)
+    }
+  }
+
+  /* Breathing UI (6s cycle = 10 breaths/min) */
+  .breathing-bg {
+    animation: breathing 6s ease-in-out infinite;
+  }
+
+  @keyframes breathing {
+    0% {
+      opacity: 0.8;
+      filter: brightness(1);
+    }
+
+    50% {
+      opacity: 1;
+      filter: brightness(1.2);
+    }
+
+    100% {
+      opacity: 0.8;
+      filter: brightness(1);
+    }
+  }
 }
