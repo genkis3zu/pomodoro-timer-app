@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
+import { CYBERWARE_CATALOG } from '../data/cyberware';
 
 const GameContext = createContext();
 
@@ -16,7 +17,12 @@ export const GameProvider = ({ children, session }) => {
     const [level, setLevel] = useState(1);
     const [history, setHistory] = useState([]);
     const [credits, setCredits] = useState(0); // New currency for shop
-    const [inventory, setInventory] = useState([]); // Owned items
+    const [inventory, setInventory] = useState(['theme_default']); // Owned items (IDs)
+    const [equippedItems, setEquippedItems] = useState({
+        theme: 'theme_default',
+        audio: null,
+        implants: []
+    });
     const [systemLogs, setSystemLogs] = useState([]); // Operational logs
 
     // Fetch initial data
@@ -29,10 +35,38 @@ export const GameProvider = ({ children, session }) => {
             setLevel(1);
             setHistory([]);
             setCredits(0);
-            setInventory([]);
+            setInventory(['theme_default']);
+            setEquippedItems({ theme: 'theme_default', audio: null, implants: [] });
             setSystemLogs([]);
         }
     }, [session]);
+
+    // Calculate Active Effects
+    const activeEffects = useMemo(() => {
+        let xpMultiplier = 1;
+        let visualTheme = 'default';
+        let audioPack = null;
+        let overdriveCredit = 0;
+
+        // Apply Theme
+        const themeItem = CYBERWARE_CATALOG.find(i => i.id === equippedItems.theme);
+        if (themeItem) visualTheme = themeItem.effect.value;
+
+        // Apply Audio
+        const audioItem = CYBERWARE_CATALOG.find(i => i.id === equippedItems.audio);
+        if (audioItem) audioPack = audioItem.effect.value;
+
+        // Apply Implants
+        equippedItems.implants.forEach(implantId => {
+            const item = CYBERWARE_CATALOG.find(i => i.id === implantId);
+            if (item) {
+                if (item.effect.type === 'xp_multiplier') xpMultiplier *= item.effect.value;
+                if (item.effect.type === 'overdrive_credit') overdriveCredit += item.effect.value;
+            }
+        });
+
+        return { xpMultiplier, visualTheme, audioPack, overdriveCredit };
+    }, [equippedItems]);
 
     const addLog = (message, type = 'INFO') => {
         const newLog = {
@@ -48,7 +82,7 @@ export const GameProvider = ({ children, session }) => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('total_xp, level') // We will need to add credits/inventory columns to DB later
+                .select('total_xp, level, credits, inventory, equipped_items')
                 .eq('id', session.user.id)
                 .single();
 
@@ -56,8 +90,9 @@ export const GameProvider = ({ children, session }) => {
             if (data) {
                 setTotalXP(data.total_xp || 0);
                 setLevel(data.level || 1);
-                // setCredits(data.credits || 0); 
-                // setInventory(data.inventory || []);
+                setCredits(data.credits || 0);
+                setInventory(data.inventory || ['theme_default']);
+                setEquippedItems(data.equipped_items || { theme: 'theme_default', audio: null, implants: [] });
             }
         } catch (error) {
             console.error('Error fetching profile:', error.message);
@@ -89,10 +124,71 @@ export const GameProvider = ({ children, session }) => {
         }
     };
 
+    const buyItem = async (itemId) => {
+        const item = CYBERWARE_CATALOG.find(i => i.id === itemId);
+        if (!item) return { success: false, message: 'Item not found' };
+        if (inventory.includes(itemId)) return { success: false, message: 'Item already owned' };
+        if (credits < item.cost) return { success: false, message: 'Insufficient credits' };
+
+        const newCredits = credits - item.cost;
+        const newInventory = [...inventory, itemId];
+
+        setCredits(newCredits);
+        setInventory(newInventory);
+        addLog(`PURCHASED: ${item.name} (-${item.cost} CR)`, 'SUCCESS');
+
+        await saveProfile({ credits: newCredits, inventory: newInventory });
+        return { success: true, message: 'Purchase successful' };
+    };
+
+    const equipItem = async (itemId, type) => {
+        if (!inventory.includes(itemId)) return { success: false, message: 'Item not owned' };
+
+        let newEquipped = { ...equippedItems };
+
+        if (type === 'theme') {
+            newEquipped.theme = itemId;
+        } else if (type === 'audio') {
+            newEquipped.audio = itemId === newEquipped.audio ? null : itemId; // Toggle
+        } else if (type === 'implant') {
+            // Toggle implant
+            if (newEquipped.implants.includes(itemId)) {
+                newEquipped.implants = newEquipped.implants.filter(id => id !== itemId);
+            } else {
+                // Limit implants? For now, unlimited slots.
+                newEquipped.implants = [...newEquipped.implants, itemId];
+            }
+        }
+
+        setEquippedItems(newEquipped);
+        addLog(`EQUIPPED: ${CYBERWARE_CATALOG.find(i => i.id === itemId)?.name}`, 'INFO');
+        await saveProfile({ equipped_items: newEquipped });
+    };
+
+    const saveProfile = async (updates) => {
+        if (!session?.user) return;
+        try {
+            const { error } = await supabase
+                .from('profiles')
+                .update({
+                    ...updates,
+                    updated_at: new Date()
+                })
+                .eq('id', session.user.id);
+            if (error) throw error;
+        } catch (error) {
+            console.error('Error saving profile:', error.message);
+            addLog(`ERROR SAVING PROFILE: ${error.message}`, 'ERROR');
+        }
+    };
+
     const addSession = async (mode, task, xpGained) => {
-        const newTotalXP = totalXP + xpGained;
+        // Apply XP Multiplier from active effects
+        const finalXp = Math.floor(xpGained * activeEffects.xpMultiplier);
+
+        const newTotalXP = totalXP + finalXp;
         const newLevel = Math.floor(newTotalXP / 100) + 1;
-        const newCredits = credits + xpGained; // 1 XP = 1 Credit for now
+        const newCredits = credits + finalXp; // 1 XP = 1 Credit
 
         setTotalXP(newTotalXP);
         setLevel(newLevel);
@@ -103,10 +199,10 @@ export const GameProvider = ({ children, session }) => {
             timestamp: new Date().toISOString(),
             mode,
             task,
-            xp: xpGained
+            xp: finalXp
         };
         setHistory(prev => [newSession, ...prev]);
-        addLog(`SESSION COMPLETE: ${task} (+${xpGained} XP)`, 'SUCCESS');
+        addLog(`SESSION COMPLETE: ${task} (+${finalXp} XP)`, 'SUCCESS');
 
         if (session?.user) {
             try {
@@ -119,22 +215,16 @@ export const GameProvider = ({ children, session }) => {
                             end_time: new Date().toISOString(),
                             mode,
                             task,
-                            xp_gained: xpGained
+                            xp_gained: finalXp
                         }
                     ]);
                 if (sessionError) throw sessionError;
 
-                const { error: profileError } = await supabase
-                    .from('profiles')
-                    .update({
-                        total_xp: newTotalXP,
-                        level: newLevel,
-                        updated_at: new Date()
-                        // credits: newCredits 
-                    })
-                    .eq('id', session.user.id);
-
-                if (profileError) throw profileError;
+                await saveProfile({
+                    total_xp: newTotalXP,
+                    level: newLevel,
+                    credits: newCredits
+                });
 
             } catch (error) {
                 console.error('Error saving progress:', error.message);
@@ -149,9 +239,13 @@ export const GameProvider = ({ children, session }) => {
         history,
         credits,
         inventory,
+        equippedItems,
+        activeEffects,
         systemLogs,
         addSession,
-        addLog
+        addLog,
+        buyItem,
+        equipItem
     };
 
     return (

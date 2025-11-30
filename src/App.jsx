@@ -5,6 +5,7 @@ import Auth from './components/Auth';
 import HelpModal from './components/HelpModal';
 import SettingsModal from './components/SettingsModal';
 import OverdriveModal from './components/OverdriveModal';
+import ShopModal from './components/ShopModal';
 import { supabase } from './lib/supabaseClient';
 import { getPresets } from './lib/audioPresets';
 import { useAudioPlayer } from './hooks/useAudioPlayer';
@@ -24,7 +25,8 @@ const AppContent = () => {
     const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
 
     const { mode, showOverdrivePrompt, startOverdrive, endSession } = useTimer();
-    const { history, totalXP, systemLogs } = useGame();
+    const { history, totalXP, systemLogs, activeEffects } = useGame();
+    const [showShop, setShowShop] = useState(false);
 
     // Audio Settings State
     const [audioSettings, setAudioSettings] = useState({
@@ -100,6 +102,21 @@ const AppContent = () => {
     };
 
     const getBackgroundClass = () => {
+        const theme = activeEffects.visualTheme;
+
+        if (theme === 'matrix') {
+            return 'bg-black text-green-500 font-mono'; // Simplified matrix theme
+        }
+        if (theme === 'neon_samurai') {
+            return mode === 'work'
+                ? 'bg-gradient-to-br from-pink-900 via-purple-900 to-slate-900'
+                : 'bg-gradient-to-br from-cyan-900 via-blue-900 to-slate-900';
+        }
+        if (theme === 'gold') {
+            return 'bg-gradient-to-br from-slate-900 via-yellow-900/20 to-slate-900 border-yellow-500/20';
+        }
+
+        // Default
         return mode === 'work'
             ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
             : 'bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900';
@@ -191,6 +208,7 @@ const AppContent = () => {
                                     setCurrentTask={setCurrentTask}
                                     totalXP={totalXP}
                                     systemLogs={systemLogs}
+                                    onOpenShop={() => setShowShop(true)}
                                 />
                             </div>
                         ) : (
@@ -220,6 +238,7 @@ const AppContent = () => {
                     onJackOut={endSession}
                 />
             )}
+            {showShop && <ShopModal onClose={() => setShowShop(false)} />}
         </div>
     );
 };
