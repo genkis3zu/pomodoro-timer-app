@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 import { supabase } from '../lib/supabaseClient';
 import { CYBERWARE_CATALOG } from '../data/cyberware';
+import { AVATAR_PARTS } from '../data/avatars';
 
 const GameContext = createContext();
 
@@ -22,6 +23,11 @@ export const GameProvider = ({ children, session }) => {
         theme: 'theme_default',
         audio: null,
         implants: []
+    });
+    const [avatarConfig, setAvatarConfig] = useState({
+        base: 'base_male_1',
+        cyberware: [],
+        background: 'bg_default'
     });
     const [systemLogs, setSystemLogs] = useState([]); // Operational logs
 
@@ -82,20 +88,54 @@ export const GameProvider = ({ children, session }) => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
-                .select('total_xp, level, credits, inventory, equipped_items')
+                .select('total_xp, level, credits, inventory, equipped_items, avatar_config')
                 .eq('id', session.user.id)
                 .single();
 
-            if (error && error.code !== 'PGRST116') throw error;
+            if (error && error.code === 'PGRST116') {
+                // Profile doesn't exist, create it
+                const newProfile = {
+                    id: session.user.id,
+                    total_xp: 0,
+                    level: 1,
+                    credits: 0,
+                    inventory: ['theme_default'],
+                    equipped_items: { theme: 'theme_default', audio: null, implants: [] },
+                    avatar_config: { base: 'base_male_1', cyberware: [], background: 'bg_default' }
+                };
+
+                const { error: insertError } = await supabase
+                    .from('profiles')
+                    .insert([newProfile]);
+
+                if (insertError) throw insertError;
+
+                // Set initial state
+                setTotalXP(0);
+                setLevel(1);
+                setCredits(0);
+                setInventory(['theme_default']);
+                setEquippedItems(newProfile.equipped_items);
+                setAvatarConfig(newProfile.avatar_config);
+                addLog('NEW PROFILE CREATED', 'SUCCESS');
+                return;
+            }
+
+            if (error) throw error;
+
             if (data) {
                 setTotalXP(data.total_xp || 0);
                 setLevel(data.level || 1);
                 setCredits(data.credits || 0);
                 setInventory(data.inventory || ['theme_default']);
                 setEquippedItems(data.equipped_items || { theme: 'theme_default', audio: null, implants: [] });
+                if (data.avatar_config) {
+                    setAvatarConfig(data.avatar_config);
+                }
             }
         } catch (error) {
             console.error('Error fetching profile:', error.message);
+            addLog(`ERROR FETCHING PROFILE: ${error.message}`, 'ERROR');
         }
     };
 
@@ -125,44 +165,107 @@ export const GameProvider = ({ children, session }) => {
     };
 
     const buyItem = async (itemId) => {
-        const item = CYBERWARE_CATALOG.find(i => i.id === itemId);
-        if (!item) return { success: false, message: 'Item not found' };
-        if (inventory.includes(itemId)) return { success: false, message: 'Item already owned' };
-        if (credits < item.cost) return { success: false, message: 'Insufficient credits' };
+        // Check Cyberware Catalog first
+        let item = CYBERWARE_CATALOG.find(i => i.id === itemId);
+        let isAvatarPart = false;
+
+        // If not found, check Avatar Parts
+        if (!item) {
+            for (const category of Object.values(AVATAR_PARTS)) {
+                item = category.find(i => i.id === itemId);
+                if (item) {
+                    isAvatarPart = true;
+                    break;
+                }
+            }
+        }
+
+        if (!item) {
+            addLog(`ITEM NOT FOUND: ${itemId}`, 'ERROR');
+            return false;
+        }
+
+        if (credits < item.cost) {
+            addLog(`INSUFFICIENT CREDITS FOR ${item.name}`, 'WARNING');
+            return false;
+        }
+
+        if (inventory.includes(itemId)) {
+            addLog(`ALREADY OWN ${item.name}`, 'WARNING');
+            return false;
+        }
 
         const newCredits = credits - item.cost;
         const newInventory = [...inventory, itemId];
 
         setCredits(newCredits);
         setInventory(newInventory);
-        addLog(`PURCHASED: ${item.name} (-${item.cost} CR)`, 'SUCCESS');
+        addLog(`PURCHASED: ${item.name}`, 'SUCCESS');
 
-        await saveProfile({ credits: newCredits, inventory: newInventory });
-        return { success: true, message: 'Purchase successful' };
+        // Persist
+        if (session?.user?.id) {
+            await supabase
+                .from('profiles')
+                .update({
+                    credits: newCredits,
+                    inventory: newInventory
+                })
+                .eq('id', session.user.id);
+        }
+        return true;
     };
 
     const equipItem = async (itemId, type) => {
-        if (!inventory.includes(itemId)) return { success: false, message: 'Item not owned' };
+        // Handle Avatar Parts
+        if (['base', 'avatar_cyberware', 'background'].includes(type)) {
+            setAvatarConfig(prev => {
+                const newConfig = { ...prev };
+                if (type === 'base') newConfig.base = itemId;
+                if (type === 'background') newConfig.background = itemId;
+                if (type === 'avatar_cyberware') {
+                    if (newConfig.cyberware.includes(itemId)) {
+                        newConfig.cyberware = newConfig.cyberware.filter(id => id !== itemId);
+                    } else {
+                        newConfig.cyberware = [...newConfig.cyberware, itemId];
+                    }
+                }
 
-        let newEquipped = { ...equippedItems };
-
-        if (type === 'theme') {
-            newEquipped.theme = itemId;
-        } else if (type === 'audio') {
-            newEquipped.audio = itemId === newEquipped.audio ? null : itemId; // Toggle
-        } else if (type === 'implant') {
-            // Toggle implant
-            if (newEquipped.implants.includes(itemId)) {
-                newEquipped.implants = newEquipped.implants.filter(id => id !== itemId);
-            } else {
-                // Limit implants? For now, unlimited slots.
-                newEquipped.implants = [...newEquipped.implants, itemId];
-            }
+                // Persist
+                if (session?.user?.id) {
+                    supabase
+                        .from('profiles')
+                        .update({ avatar_config: newConfig })
+                        .eq('id', session.user.id)
+                        .then(({ error }) => {
+                            if (error) console.error('Error saving avatar:', error);
+                        });
+                }
+                return newConfig;
+            });
+            addLog(`EQUIPPED AVATAR PART: ${itemId}`, 'INFO');
+            return;
         }
 
-        setEquippedItems(newEquipped);
-        addLog(`EQUIPPED: ${CYBERWARE_CATALOG.find(i => i.id === itemId)?.name}`, 'INFO');
-        await saveProfile({ equipped_items: newEquipped });
+        // Handle Standard Cyberware
+        setEquippedItems(prev => {
+            const newEquipped = { ...prev };
+            if (type === 'theme') newEquipped.theme = itemId;
+            if (type === 'audio') newEquipped.audio = itemId;
+
+            // Persist
+            if (session?.user?.id) {
+                supabase
+                    .from('profiles')
+                    .update({ equipped_items: newEquipped })
+                    .eq('id', session.user.id)
+                    .then(({ error }) => {
+                        if (error) console.error('Error saving loadout:', error);
+                    });
+            }
+
+            return newEquipped;
+        });
+        addLog(`EQUIPPED: ${itemId}`, 'INFO');
     };
 
     const saveProfile = async (updates) => {
@@ -240,6 +343,7 @@ export const GameProvider = ({ children, session }) => {
         credits,
         inventory,
         equippedItems,
+        avatarConfig,
         activeEffects,
         systemLogs,
         addSession,

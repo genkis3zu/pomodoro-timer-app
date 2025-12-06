@@ -13,9 +13,7 @@ import { TimerProvider, useTimer } from './context/TimerContext';
 import { GameProvider, useGame } from './context/GameContext';
 
 // Inner component to consume contexts
-const AppContent = () => {
-    const [session, setSession] = useState({ user: { id: 'mock-user-id', email: 'test@example.com' } });
-    const [loading, setLoading] = useState(false);
+const AppContent = ({ session }) => {
     const [currentTask, setCurrentTask] = useState('');
     const [authNotification, setAuthNotification] = useState(null);
     const [audioEnabled, setAudioEnabled] = useState(false);
@@ -25,7 +23,14 @@ const AppContent = () => {
     const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
 
     const { mode, showOverdrivePrompt, startOverdrive, endSession } = useTimer();
-    const { history, totalXP, systemLogs, activeEffects } = useGame();
+    const { history, totalXP, systemLogs, activeEffects, credits } = useGame(); // Added credits here if needed for passing, but Dashboard consumes useGame now too? No, usually passed as props in legacy code, but let's check Dashboard. 
+    // Dashboard consumes useGame internally in previous edits?
+    // Let's check Dashboard imports. Dashboard imports useGame. So we don't strictly need to pass everything.
+    // But for now, let's keep passing props to match previous logic or just pass what's needed.
+    // Actually, Dashboard was refactored to use useGame internally for avatarConfig.
+    // Let's pass the rest to be safe, or just let Dashboard use useGame.
+    // Dashboard signature: ({ history, currentTask, setCurrentTask, totalXP, systemLogs, onOpenShop })
+
     const [showShop, setShowShop] = useState(false);
 
     // Audio Settings State
@@ -98,7 +103,6 @@ const AppContent = () => {
 
     const handleSignOut = async () => {
         await supabase.auth.signOut();
-        setSession(null);
     };
 
     const getBackgroundClass = () => {
@@ -121,10 +125,6 @@ const AppContent = () => {
             ? 'bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900'
             : 'bg-gradient-to-br from-slate-900 via-emerald-900 to-slate-900';
     };
-
-    if (loading) {
-        return <div className="min-h-screen flex items-center justify-center bg-slate-900 text-white">Loading...</div>;
-    }
 
     return (
         <div className={`min-h-screen w-full transition-colors duration-1000 ease-in-out ${getBackgroundClass()} breathing-bg text-white overflow-hidden font-sans selection:bg-pink-500/30 flex flex-col`}>
@@ -169,7 +169,7 @@ const AppContent = () => {
                         </svg>
                     </button>
                     <div className="text-xs font-mono bg-white/5 border border-white/10 px-3 py-1.5 rounded-full text-gray-300">
-                        v1.2.0
+                        v1.3.0
                     </div>
                     {session && (
                         <button
@@ -197,7 +197,7 @@ const AppContent = () => {
                 </div>
 
                 {/* Right Panel: Dashboard or Auth */}
-                <div className="h-full w-full glass rounded-[2rem] shadow-2xl flex flex-col relative border border-white/10 overflow-hidden">
+                <div className="h-full w-full glass rounded-[2rem] border border-white/10 relative overflow-hidden shadow-2xl backdrop-blur-xl">
                     <div className="h-full w-full relative flex flex-col">
                         <div className={`absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[80%] rounded-full blur-[100px] opacity-10 pointer-events-none ${mode === 'work' ? 'bg-indigo-500' : 'bg-teal-500'}`}></div>
                         {session ? (
@@ -244,16 +244,30 @@ const AppContent = () => {
 };
 
 function App() {
-    const [session, setSession] = useState({ user: { id: 'mock-user-id', email: 'test@example.com' } });
+    const [session, setSession] = useState(null);
+
+    useEffect(() => {
+        supabase.auth.getSession().then(({ data: { session } }) => {
+            setSession(session);
+        });
+
+        const {
+            data: { subscription },
+        } = supabase.auth.onAuthStateChange((_event, session) => {
+            setSession(session);
+        });
+
+        return () => subscription.unsubscribe();
+    }, []);
 
     return (
         <GameProvider session={session}>
-            <TimerWrapper />
+            <TimerWrapper session={session} />
         </GameProvider>
     );
 }
 
-const TimerWrapper = () => {
+const TimerWrapper = ({ session }) => {
     const { addSession, addLog } = useGame();
 
     const handleTimerComplete = (mode, isOverdrive) => {
@@ -267,7 +281,7 @@ const TimerWrapper = () => {
 
     return (
         <TimerProvider onTimerComplete={handleTimerComplete} onLog={addLog}>
-            <AppContent />
+            <AppContent session={session} />
         </TimerProvider>
     );
 };
