@@ -20,12 +20,22 @@ const AvatarDisplay = ({ config, size = 'md', className = '' }) => {
     return (
         <div className={`relative rounded-full overflow-hidden border-2 border-blue-500/30 bg-slate-900 ${sizeClasses[size]} ${className}`}>
             {/* Background Layer */}
-            {bgPart && bgPart.src && (
-                <img
-                    src={bgPart.src}
-                    alt="Background"
-                    className="absolute inset-0 w-full h-full object-cover opacity-50"
-                />
+            {bgPart && (
+                <div className="absolute inset-0 w-full h-full z-0">
+                    {bgPart.src && (
+                        <img
+                            src={bgPart.src}
+                            alt="Background"
+                            className="absolute inset-0 w-full h-full object-cover opacity-50"
+                        />
+                    )}
+                    {bgPart.css && (
+                        <div
+                            className="absolute inset-0 w-full h-full opacity-50"
+                            style={{ background: bgPart.css }}
+                        ></div>
+                    )}
+                </div>
             )}
 
             {/* Base Layer */}
