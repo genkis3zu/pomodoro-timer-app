@@ -1,0 +1,25 @@
+version: 1
+metrics:
+  - key: docs_update_rate
+    desc: "コード変更を伴うコミットのうち docs_files を同時に更新した割合"
+    type: ratio
+
+  - key: session_summary_fresh
+    desc: "SESSION_SUMMARY.md の最終更新が window_days 以内か（0/1）"
+    type: binary
+
+  - key: conventional_commits_ratio
+    desc: "直近コミットのうち Conventional Commits に適合する比率"
+    type: ratio
+
+  - key: guardrail_commit_count
+    desc: "guardrail 更新コミット数（docs(guardrail): プレフィックス）"
+    type: count
+
+  - key: rollback_documented
+    desc: "直近で rollback/revert/失敗記録（SESSION_SUMMARY or CHANGELOG）を確認できた回数"
+    type: count
+report:
+  format: ["json", "markdown"]
+  out_json: ".guardrails/report.json"
+  out_md: ".guardrails/report.md"

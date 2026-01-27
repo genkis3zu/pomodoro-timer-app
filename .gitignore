@@ -1,5 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+*.local
+
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -7,19 +21,56 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
-dist
-dist-ssr
-*.local
-.env
+# Testing
+coverage/
+.vitest/
 
-# Editor directories and files
+# IDE / Editor
 .vscode/*
 !.vscode/extensions.json
-.idea
+!.vscode/settings.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# OS generated files
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Windows
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Guardrails reports (auto-generated)
+.guardrails/report.json
+.guardrails/report.md
+
+# Debug
+*.pem
+*.pid
+*.seed
+
+# Package manager locks (keep one)
+# yarn.lock
+# pnpm-lock.yaml
+
+# Optional: Supabase local
+.supabase/
+
+# Claude Code local settings
+.claude/

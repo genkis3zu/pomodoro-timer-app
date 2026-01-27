@@ -1,0 +1,35 @@
+version: 2
+project:
+  name: "Pomodoro Focus"
+  type: "web-app"
+  stack: ["React 19", "Vite 7", "Tailwind CSS 4", "Supabase"]
+
+paths:
+  code_roots: ["src/"]
+  docs_files: ["docs/PLAN.md", "docs/CHANGELOG.md", "docs/SESSION_SUMMARY.md"]
+  guardrail_files: [".guardrails/checklist.md", ".guardrails/claude_meta.md", ".guardrails/codex_meta.md"]
+  entry_point: "src/main.jsx"
+  contexts: ["src/context/"]
+  components: ["src/components/"]
+
+metrics_window_days: 30
+
+thresholds:
+  docs_update_rate_min: 0.6
+  session_summary_recency_days: 30
+  conventional_commits_ratio_min: 0.8
+  rollback_documented_min: 1
+
+naming:
+  guardrail_commit_prefix: "docs(guardrail):"
+  conventional_regex: "^(build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test)(\\(.+\\))?:\\s"
+  branch_pattern: "^(feature|fix|refactor|docs|chore)/[a-z0-9-]+$"
+
+supabase:
+  tables: ["profiles", "sessions"]
+  schema_file: "supabase_schema.sql"
+
+quality:
+  lint: "npm run lint"
+  build: "npm run build"
+  dev: "npm run dev"
