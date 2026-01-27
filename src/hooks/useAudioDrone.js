@@ -1,21 +1,27 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 
 export const useAudioDrone = (enabled = false) => {
     const audioContextRef = useRef(null);
     const oscillatorsRef = useRef([]);
     const gainNodeRef = useRef(null);
 
-    useEffect(() => {
-        if (enabled) {
-            startDrone();
-        } else {
-            stopDrone();
+    const stopDrone = useCallback(() => {
+        oscillatorsRef.current.forEach(osc => {
+            try {
+                osc.stop();
+                osc.disconnect();
+            } catch {
+                // Ignore errors if already stopped
+            }
+        });
+        oscillatorsRef.current = [];
+
+        if (gainNodeRef.current) {
+            gainNodeRef.current.disconnect();
         }
+    }, []);
 
-        return () => stopDrone();
-    }, [enabled]);
-
-    const startDrone = () => {
+    const startDrone = useCallback(() => {
         if (!audioContextRef.current) {
             audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
@@ -41,23 +47,17 @@ export const useAudioDrone = (enabled = false) => {
         osc2.start();
 
         oscillatorsRef.current = [osc1, osc2];
-    };
+    }, []);
 
-    const stopDrone = () => {
-        oscillatorsRef.current.forEach(osc => {
-            try {
-                osc.stop();
-                osc.disconnect();
-            } catch (e) {
-                // Ignore errors if already stopped
-            }
-        });
-        oscillatorsRef.current = [];
-
-        if (gainNodeRef.current) {
-            gainNodeRef.current.disconnect();
+    useEffect(() => {
+        if (enabled) {
+            startDrone();
+        } else {
+            stopDrone();
         }
-    };
+
+        return () => stopDrone();
+    }, [enabled, startDrone, stopDrone]);
 
     return null;
 };

@@ -3,7 +3,7 @@ import ProgressBar from './ProgressBar';
 import Controls from './Controls';
 import { useTimer } from '../context/TimerContext';
 
-const Timer = ({ audioEnabled, onToggleAudio, playAlarm }) => {
+const Timer = ({ audioEnabled, onToggleAudio }) => {
     const { mode, timeLeft, isActive, totalTime, toggleTimer, resetTimer, switchMode } = useTimer();
 
     const progress = ((totalTime - timeLeft) / totalTime) * 100;

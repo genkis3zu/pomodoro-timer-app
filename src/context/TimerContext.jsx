@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useRef } from 'react';
 
 const TimerContext = createContext();
 
@@ -12,101 +12,137 @@ export const useTimer = () => {
 
 const WORK_TIME = 25 * 60;
 const BREAK_TIME = 5 * 60;
+const OVERDRIVE_TIME = 10 * 60;
+
+const initialState = {
+    mode: 'work',
+    timeLeft: WORK_TIME,
+    isActive: false,
+    totalTime: WORK_TIME,
+    showOverdrivePrompt: false,
+    overdriveActive: false
+};
+
+const timerReducer = (state, action) => {
+    switch (action.type) {
+        case 'SWITCH_MODE': {
+            const newTime = action.mode === 'work' ? WORK_TIME : BREAK_TIME;
+            return {
+                ...state,
+                mode: action.mode,
+                totalTime: newTime,
+                timeLeft: newTime,
+                isActive: false,
+                showOverdrivePrompt: false,
+                overdriveActive: false
+            };
+        }
+        case 'TICK':
+            return { ...state, timeLeft: state.timeLeft - 1 };
+        case 'TIMER_COMPLETE':
+            return { ...state, isActive: false, showOverdrivePrompt: true };
+        case 'TIMER_FINISH':
+            return { ...state, isActive: false, showOverdrivePrompt: false };
+        case 'START_OVERDRIVE':
+            return {
+                ...state,
+                overdriveActive: true,
+                timeLeft: OVERDRIVE_TIME,
+                totalTime: OVERDRIVE_TIME,
+                isActive: true,
+                showOverdrivePrompt: false
+            };
+        case 'TOGGLE':
+            return { ...state, isActive: !state.isActive };
+        case 'RESET': {
+            const resetTime = state.mode === 'work' ? WORK_TIME : BREAK_TIME;
+            return {
+                ...state,
+                isActive: false,
+                timeLeft: resetTime,
+                showOverdrivePrompt: false,
+                overdriveActive: false
+            };
+        }
+        case 'END_SESSION':
+            return { ...state, showOverdrivePrompt: false };
+        default:
+            return state;
+    }
+};
 
 export const TimerProvider = ({ children, onTimerComplete, onLog }) => {
-    const [mode, setMode] = useState('work');
-    const [timeLeft, setTimeLeft] = useState(WORK_TIME);
-    const [isActive, setIsActive] = useState(false);
-    const [totalTime, setTotalTime] = useState(WORK_TIME);
-    const [showOverdrivePrompt, setShowOverdrivePrompt] = useState(false);
-    const [overdriveActive, setOverdriveActive] = useState(false);
+    const [state, dispatch] = useReducer(timerReducer, initialState);
+    const prevModeRef = useRef(state.mode);
 
-    // Update totalTime and reset timeLeft when mode changes
+    // Log mode changes (using ref to detect actual changes)
     useEffect(() => {
-        const newTotalTime = mode === 'work' ? WORK_TIME : BREAK_TIME;
-        setTotalTime(newTotalTime);
-        setTimeLeft(newTotalTime);
-        setIsActive(false);
-        setShowOverdrivePrompt(false);
-        setOverdriveActive(false);
-        if (onLog) onLog(`MODE SWITCHED: ${mode.toUpperCase()}`, 'INFO');
-    }, [mode]);
+        if (prevModeRef.current !== state.mode) {
+            if (onLog) onLog(`MODE SWITCHED: ${state.mode.toUpperCase()}`, 'INFO');
+            prevModeRef.current = state.mode;
+        }
+    }, [state.mode, onLog]);
 
-    // Timer Interval Logic
+    // Timer Interval Logic - only handles tick
     useEffect(() => {
-        let interval = null;
-        if (isActive && timeLeft > 0) {
-            interval = setInterval(() => {
-                setTimeLeft((prevTime) => prevTime - 1);
-            }, 1000);
-        } else if (timeLeft === 0 && isActive) {
-            setIsActive(false);
-            if (mode === 'work' && !overdriveActive) {
-                // Trigger Overdrive Prompt for Work mode
-                setShowOverdrivePrompt(true);
+        if (!state.isActive || state.timeLeft <= 0) return;
+        const interval = setInterval(() => dispatch({ type: 'TICK' }), 1000);
+        return () => clearInterval(interval);
+    }, [state.isActive, state.timeLeft]);
+
+    // Timer completion detection - separate effect
+    useEffect(() => {
+        if (state.timeLeft === 0 && state.isActive) {
+            if (state.mode === 'work' && !state.overdriveActive) {
+                dispatch({ type: 'TIMER_COMPLETE' });
                 if (onLog) onLog('SESSION ENDED. AWAITING OVERDRIVE RESPONSE.', 'WARNING');
             } else {
-                // Auto-complete for Break mode or if already in Overdrive (and it ends?)
-                // If Overdrive ends (e.g. +10 mins done), maybe we prompt again or just finish?
-                // For simplicity, let's finish if Overdrive ends.
+                dispatch({ type: 'TIMER_FINISH' });
                 if (onTimerComplete) {
-                    onTimerComplete(mode, overdriveActive);
+                    onTimerComplete(state.mode, state.overdriveActive);
                 }
             }
         }
-        return () => clearInterval(interval);
-    }, [isActive, timeLeft, mode, onTimerComplete, overdriveActive]);
+    }, [state.timeLeft, state.isActive, state.mode, state.overdriveActive, onTimerComplete, onLog]);
 
     const toggleTimer = useCallback(() => {
-        setIsActive((prev) => {
-            const newState = !prev;
-            if (onLog) onLog(newState ? 'TIMER RESUMED' : 'TIMER PAUSED', 'INFO');
-            return newState;
-        });
-    }, [onLog]);
+        dispatch({ type: 'TOGGLE' });
+        if (onLog) onLog(state.isActive ? 'TIMER PAUSED' : 'TIMER RESUMED', 'INFO');
+    }, [onLog, state.isActive]);
 
     const resetTimer = useCallback(() => {
-        setIsActive(false);
-        setTimeLeft(mode === 'work' ? WORK_TIME : BREAK_TIME);
-        setShowOverdrivePrompt(false);
-        setOverdriveActive(false);
+        dispatch({ type: 'RESET' });
         if (onLog) onLog('TIMER RESET', 'WARNING');
-    }, [mode, onLog]);
+    }, [onLog]);
 
     const switchMode = useCallback((newMode) => {
-        setMode(newMode);
+        dispatch({ type: 'SWITCH_MODE', mode: newMode });
     }, []);
 
     const startOverdrive = useCallback(() => {
-        setShowOverdrivePrompt(false);
-        setOverdriveActive(true);
-        const overdriveTime = 10 * 60; // 10 minutes extension
-        setTimeLeft(overdriveTime);
-        setTotalTime(overdriveTime); // Update total time for progress bar? Or keep original? 
-        // If we update totalTime, progress bar resets. That's probably fine for a "new" phase.
-        setIsActive(true);
+        dispatch({ type: 'START_OVERDRIVE' });
         if (onLog) onLog('OVERDRIVE INITIATED: +10 MIN', 'SUCCESS');
     }, [onLog]);
 
     const endSession = useCallback(() => {
-        setShowOverdrivePrompt(false);
+        dispatch({ type: 'END_SESSION' });
         if (onLog) onLog('JACK OUT: SESSION TERMINATED', 'INFO');
         if (onTimerComplete) {
-            onTimerComplete(mode, overdriveActive);
+            onTimerComplete(state.mode, state.overdriveActive);
         }
-    }, [mode, overdriveActive, onTimerComplete, onLog]);
+    }, [state.mode, state.overdriveActive, onTimerComplete, onLog]);
 
     const value = {
-        mode,
-        timeLeft,
-        isActive,
-        totalTime,
+        mode: state.mode,
+        timeLeft: state.timeLeft,
+        isActive: state.isActive,
+        totalTime: state.totalTime,
         toggleTimer,
         resetTimer,
         switchMode,
         setMode: switchMode,
-        showOverdrivePrompt,
-        overdriveActive,
+        showOverdrivePrompt: state.showOverdrivePrompt,
+        overdriveActive: state.overdriveActive,
         startOverdrive,
         endSession
     };

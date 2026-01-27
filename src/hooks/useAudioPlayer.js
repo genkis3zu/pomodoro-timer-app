@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 
 export const useAudioPlayer = ({ src, volume = 0.5, loop = false, enabled = false, fadeDuration = 2000 }) => {
     const audioRef = useRef(null);
@@ -45,7 +45,7 @@ export const useAudioPlayer = ({ src, volume = 0.5, loop = false, enabled = fals
             audio.src = '';
             audioRef.current = null;
         };
-    }, [src, loop]);
+    }, [src, loop, enabled, fadeDuration, volume]);
 
     // Handle Volume Changes (only if not currently fading ideally, but for now direct update)
     useEffect(() => {
@@ -102,7 +102,7 @@ export const useAudioPlayer = ({ src, volume = 0.5, loop = false, enabled = fals
         }
 
         return () => clearFadeInterval();
-    }, [enabled]);
+    }, [enabled, fadeDuration, volume]);
 
     return audioRef;
 };

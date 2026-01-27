@@ -167,16 +167,12 @@ export const GameProvider = ({ children, session }) => {
     const buyItem = async (itemId) => {
         // Check Cyberware Catalog first
         let item = CYBERWARE_CATALOG.find(i => i.id === itemId);
-        let isAvatarPart = false;
 
         // If not found, check Avatar Parts
         if (!item) {
             for (const category of Object.values(AVATAR_PARTS)) {
                 item = category.find(i => i.id === itemId);
-                if (item) {
-                    isAvatarPart = true;
-                    break;
-                }
+                if (item) break;
             }
         }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import Timer from './components/Timer';
 import Dashboard from './components/Dashboard';
 import Auth from './components/Auth';
@@ -15,7 +15,7 @@ import { GameProvider, useGame } from './context/GameContext';
 // Inner component to consume contexts
 const AppContent = ({ session }) => {
     const [currentTask, setCurrentTask] = useState('');
-    const [authNotification, setAuthNotification] = useState(null);
+    const [authNotification] = useState(null);
     const [audioEnabled, setAudioEnabled] = useState(false);
     const [showHelp, setShowHelp] = useState(false);
     const [showSettings, setShowSettings] = useState(false);
@@ -23,36 +23,23 @@ const AppContent = ({ session }) => {
     const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
 
     const { mode, showOverdrivePrompt, startOverdrive, endSession } = useTimer();
-    const { history, totalXP, systemLogs, activeEffects, credits } = useGame(); // Added credits here if needed for passing, but Dashboard consumes useGame now too? No, usually passed as props in legacy code, but let's check Dashboard. 
-    // Dashboard consumes useGame internally in previous edits?
-    // Let's check Dashboard imports. Dashboard imports useGame. So we don't strictly need to pass everything.
-    // But for now, let's keep passing props to match previous logic or just pass what's needed.
-    // Actually, Dashboard was refactored to use useGame internally for avatarConfig.
-    // Let's pass the rest to be safe, or just let Dashboard use useGame.
-    // Dashboard signature: ({ history, currentTask, setCurrentTask, totalXP, systemLogs, onOpenShop })
+    const { history, totalXP, systemLogs, activeEffects } = useGame();
 
     const [showShop, setShowShop] = useState(false);
 
-    // Audio Settings State
-    const [audioSettings, setAudioSettings] = useState({
-        work: { source: 'preset', presetId: null, volume: 0.5 },
-        break: { source: 'preset', presetId: null, volume: 0.5 },
-        alarm: { source: 'preset', presetId: null, volume: 0.8 }
-    });
-
-    // Initialize presets on mount
-    useEffect(() => {
+    // Audio Settings State - initialized with presets
+    const initialAudioSettings = useMemo(() => {
         const presets = getPresets();
         const workPreset = presets.find(p => p.category === 'work');
         const breakPreset = presets.find(p => p.category === 'break');
         const alarmPreset = presets.find(p => p.category === 'alarm');
-
-        setAudioSettings(prev => ({
-            work: { ...prev.work, presetId: workPreset?.id },
-            break: { ...prev.break, presetId: breakPreset?.id },
-            alarm: { ...prev.alarm, presetId: alarmPreset?.id }
-        }));
+        return {
+            work: { source: 'preset', presetId: workPreset?.id, volume: 0.5 },
+            break: { source: 'preset', presetId: breakPreset?.id, volume: 0.5 },
+            alarm: { source: 'preset', presetId: alarmPreset?.id, volume: 0.8 }
+        };
     }, []);
+    const [audioSettings, setAudioSettings] = useState(initialAudioSettings);
 
     // Determine current ambient source
     const getCurrentAudioSource = () => {
